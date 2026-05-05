@@ -93,6 +93,17 @@ python3 scripts/fleet.py sync
 
 Check the subscription URL reported by `status` or `sync` with `curl -I`, then refresh in Clash Verge Rev / Mihomo.
 
+## Traffic Quota Metadata
+
+For monthly VPS plans, add optional node fields in `config.json`:
+
+```json
+"traffic_limit_gb": 1000,
+"plan": "BandwagonHost 1C2G 1TB/month"
+```
+
+`status` uses live 3x-ui `up/down` counters plus `traffic_limit_gb` to display used percentage and remaining quota.
+
 ## Technical Notes
 
 These matter when debugging or extending the skill:

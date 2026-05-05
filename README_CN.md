@@ -7,7 +7,7 @@
 - **一键部署** — 自动安装 3x-ui、扫描端口冲突并选择可用端口、配置 VLESS+Reality、开放防火墙、更新订阅文件，全部在一个 `deploy` 命令完成
 - **订阅同步** — 从每个节点的 API 拉取实时状态，重新生成 Clash YAML，订阅永远反映真实配置
 - **NAT 支持** — `--nat 10000-10009` 自动在端口段内选择可用端口
-- **舰队状态** — 并行健康检查，显示所有节点的连通性和流量统计
+- **舰队状态** — 并行健康检查，显示所有节点的连通性、流量统计和可选月流量额度使用情况
 - **模块化规则** — AI 服务、流媒体、通用代理、国内直连规则分文件管理，改完 `sync` 即生效
 
 ## 环境要求
@@ -133,6 +133,20 @@ ssh <host> 'ss -tlnp | grep -E "(:443|:9453)"'
 python3 -m py_compile scripts/fleet.py
 python3 -m unittest -v tests/test_fleet.py
 ```
+
+## 流量额度元信息
+
+在 `config.json` 的节点里加 `traffic_limit_gb`，`status` 就会显示月流量额度使用情况：
+
+```json
+{
+  "name": "Los Angeles",
+  "traffic_limit_gb": 1000,
+  "plan": "BandwagonHost 1C2G 1TB/month"
+}
+```
+
+这个字段只是套餐元信息；实际 `up/down` 计数仍由 3x-ui 返回。
 
 ## 技术备注
 

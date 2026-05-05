@@ -9,7 +9,7 @@ Manage multiple VPS proxy nodes from a single command line. Deploys [3x-ui](http
 - **One-command deploy** — installs 3x-ui, picks an available port (scans for conflicts first), configures VLESS+Reality, opens the firewall, and updates your subscription file. All in one `deploy`.
 - **Subscription sync** — queries every node's live API state and regenerates the Clash YAML, so the subscription always reflects reality.
 - **NAT support** — pass `--nat 10000-10009` and it picks the first free port in that range.
-- **Fleet status** — parallel health check across all nodes with traffic stats.
+- **Fleet status** — parallel health check across all nodes with traffic stats and optional monthly quota usage.
 - **Modular rules** — AI services, streaming, general proxy, and China-direct rules in separate template files. Edit and `sync`.
 
 ## Requirements
@@ -136,7 +136,21 @@ python3 -m py_compile scripts/fleet.py
 python3 -m unittest -v tests/test_fleet.py
 ```
 
-## Tech Notes
+## Traffic Quota Metadata
+
+Add `traffic_limit_gb` to any node in `config.json` to show monthly quota usage in `status`:
+
+```json
+{
+  "name": "Los Angeles",
+  "traffic_limit_gb": 1000,
+  "plan": "BandwagonHost 1C2G 1TB/month"
+}
+```
+
+The value is metadata only; 3x-ui still provides actual `up/down` counters.
+
+## Technical Notes
 
 - **Xray v26 key format**: `x25519` outputs `PrivateKey` / `Password` or `Password (PublicKey)` (= public key) / `Hash32`. Older versions use `Private key` / `Public key`. The script handles these variants.
 - **3x-ui install script** is interactive and can't reliably receive piped input. We install with defaults, then reset credentials via the CLI.

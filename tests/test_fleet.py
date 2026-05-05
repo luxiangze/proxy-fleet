@@ -53,6 +53,18 @@ class FleetTests(unittest.TestCase):
         argv = shlex.split(captured["args"])
         self.assertEqual(argv, ["443", "New York", "9453", "admin user", "pa ss'word", "www.microsoft.com"])
 
+    def test_format_traffic_with_monthly_limit(self):
+        self.assertEqual(
+            fleet.format_traffic(100 * 1024**3, 50 * 1024**3, 1000),
+            "150.0G/1000G 15.0% left 850.0G",
+        )
+
+    def test_format_traffic_without_limit_keeps_up_down(self):
+        self.assertEqual(
+            fleet.format_traffic(3 * 1024**2, 25 * 1024**2, None),
+            "↑3M ↓25M",
+        )
+
     def test_generate_subscription_can_enable_ipv6_dns(self):
         cfg = {
             "defaults": {"sni": "www.microsoft.com", "fingerprint": "chrome", "dns": {"ipv6": True}},

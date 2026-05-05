@@ -25,5 +25,15 @@
       "foreign": ["https://dns.google/dns-query", "https://cloudflare-dns.com/dns-query"]
     }
   },
-  "nodes": []
+  "nodes": [
+    {
+      "name": "Tokyo",
+      "emoji": "🇯🇵",
+      "ssh_host": "my-vps",
+      "server": "203.0.113.10",
+      "port": 8443,
+      "traffic_limit_gb": 1000,
+      "nat_ports": null
+    }
+  ]
 }

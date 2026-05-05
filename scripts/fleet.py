@@ -276,6 +276,34 @@ def create_inbound(host, port, remark, cfg):
     print(f"  [{host}] VLESS+Reality on port {port} — UUID: {result['uuid'][:8]}...")
     return result
 
+def format_bytes(n):
+    """Human-readable binary byte size for status output."""
+    n = int(n or 0)
+    if n >= 1024 ** 4:
+        return f"{n / 1024 ** 4:.1f}T"
+    if n >= 1024 ** 3:
+        return f"{n / 1024 ** 3:.1f}G"
+    if n >= 1024 ** 2:
+        return f"{n // 1024 ** 2}M"
+    if n >= 1024:
+        return f"{n // 1024}K"
+    return f"{n}B"
+
+
+def format_traffic(up, down, limit_gb=None):
+    """Format traffic usage, optionally including monthly quota progress."""
+    up = int(up or 0)
+    down = int(down or 0)
+    used = up + down
+    if not limit_gb:
+        return f"↑{up // 1048576}M ↓{down // 1048576}M"
+
+    limit_bytes = float(limit_gb) * 1024 ** 3
+    percent = used / limit_bytes * 100 if limit_bytes else 0
+    remaining = max(limit_bytes - used, 0)
+    limit_label = f"{float(limit_gb):g}G"
+    return f"{format_bytes(used)}/{limit_label} {percent:.1f}% left {format_bytes(remaining)}"
+
 # ── Remote Query ─────────────────────────────────────────────
 
 REMOTE_QUERY_SCRIPT = textwrap.dedent(r'''
@@ -618,8 +646,8 @@ def cmd_status():
         print("\nNo nodes configured. Run 'fleet.py deploy <host>' to add one.")
         return
 
-    print(f"\n{'Node':<20} {'Server':<20} {'Port':>6}  {'Status':<16} {'Traffic':>12}")
-    print("─" * 78)
+    print(f"\n{'Node':<20} {'Server':<20} {'Port':>6}  {'Status':<16} {'Traffic':>32}")
+    print("─" * 100)
 
     def check(node):
         host = node["ssh_host"]
@@ -629,7 +657,7 @@ def cmd_status():
             reachable = verify_port(node["server"], node["port"])
             up = vless.get("up", 0) if vless else 0
             down = vless.get("down", 0) if vless else 0
-            traffic = f"↑{up // 1048576}M ↓{down // 1048576}M"
+            traffic = format_traffic(up, down, node.get("traffic_limit_gb"))
             status = "✅ OK" if reachable else "⚠️  Unreachable"
             return node, status, traffic
         except Exception as e:
@@ -640,7 +668,7 @@ def cmd_status():
         for f in as_completed(futures):
             node, status, traffic = f.result()
             name = f"{node['emoji']} {node['name']}"
-            print(f"{name:<20} {node['server']:<20} {node['port']:>6}  {status:<16} {traffic:>12}")
+            print(f"{name:<20} {node['server']:<20} {node['port']:>6}  {status:<16} {traffic:>32}")
 
     sub = cfg["subscription"]
     print(f"\n📋 Subscription: https://{sub['domain']}/{sub['url_path']}/config.yaml")
@@ -709,6 +737,7 @@ def cmd_deploy(hosts, nat_range=None, name_override=None, emoji_override=None):
                 "ssh_host": host,
                 "server": server,
                 "port": port,
+                "traffic_limit_gb": None,
                 "nat_ports": list(nat_range) if nat_range else None,
             })
             save_config(cfg)
