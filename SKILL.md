@@ -97,11 +97,14 @@ Check the subscription URL reported by `status` or `sync` with `curl -I`, then r
 
 These matter when debugging or extending the skill:
 
-- **Xray v26+ key format**: `x25519` outputs `PrivateKey` / `Password` (= public key) / `Hash32`.
-  Older versions use `Private key` / `Public key`. The script handles both.
+- **Xray v26+ key format**: `x25519` outputs `PrivateKey` / `Password` or
+  `Password (PublicKey)` (= public key) / `Hash32`. Older versions use
+  `Private key` / `Public key`. The script handles these variants.
 - **3x-ui install** is interactive — the script installs with defaults, then resets credentials
   via the `/usr/local/x-ui/x-ui setting` CLI.
 - **3x-ui API**: `POST /login` → session cookie → `/panel/api/inbounds/{add,update,del,list}`.
+  Newer 3x-ui may serve the panel via self-signed HTTPS; the script tries HTTPS first,
+  then HTTP fallback.
 - **Reality returns HTTP 400** to non-VLESS clients — the connectivity check treats 400 as alive.
 - **Port conflicts** are the #1 deploy failure cause — the script scans ports before configuring.
 - **UFW detection** must match `Status: active`; substring checks are wrong because `inactive` contains `active`.

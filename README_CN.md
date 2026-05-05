@@ -136,9 +136,9 @@ python3 -m unittest -v tests/test_fleet.py
 
 ## 技术备注
 
-- **Xray v26 密钥格式**：`x25519` 输出 `PrivateKey` / `Password`（= 公钥）/ `Hash32`。旧版输出 `Private key` / `Public key`。脚本兼容两种格式。
+- **Xray v26 密钥格式**：`x25519` 输出 `PrivateKey` / `Password` 或 `Password (PublicKey)`（= 公钥）/ `Hash32`。旧版输出 `Private key` / `Public key`。脚本兼容这些格式。
 - **3x-ui 安装脚本**是交互式的，无法可靠 pipe 输入。策略是先装默认配置，再通过 CLI 重置凭证。
-- **3x-ui API**：`POST /login` → 获取 session cookie → `/panel/api/inbounds/{add,update,del,list}`
+- **3x-ui API**：`POST /login` → 获取 session cookie → `/panel/api/inbounds/{add,update,del,list}`。新版 3x-ui 可能用自签 HTTPS 提供面板，脚本会先试 HTTPS，再 fallback HTTP。
 - **Reality 对非 VLESS 客户端返回 400** — 连通性检测时 400 = 节点正常。
 - **端口冲突**是最常见的部署失败原因 — 脚本会在配置前先扫描端口。
 - **UFW 检测**必须匹配 `Status: active`，不能用 substring，因为 `inactive` 里也包含 `active`。

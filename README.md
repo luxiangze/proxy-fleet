@@ -138,9 +138,9 @@ python3 -m unittest -v tests/test_fleet.py
 
 ## Tech Notes
 
-- **Xray v26 key format**: `x25519` outputs `PrivateKey` / `Password` (= public key) / `Hash32`. Older versions use `Private key` / `Public key`. The script handles both.
+- **Xray v26 key format**: `x25519` outputs `PrivateKey` / `Password` or `Password (PublicKey)` (= public key) / `Hash32`. Older versions use `Private key` / `Public key`. The script handles these variants.
 - **3x-ui install script** is interactive and can't reliably receive piped input. We install with defaults, then reset credentials via the CLI.
-- **3x-ui API**: `POST /login` → session cookie → `/panel/api/inbounds/{add,update,del,list}`.
+- **3x-ui API**: `POST /login` → session cookie → `/panel/api/inbounds/{add,update,del,list}`. Newer 3x-ui may serve the panel via self-signed HTTPS; the script tries HTTPS first, then HTTP fallback.
 - **Reality returns 400** to non-VLESS clients. The connectivity check treats 400 as "alive".
 - **Port conflicts** are the #1 deploy failure. The script scans ports before configuring.
 - **UFW detection** must match `Status: active`; do not use substring matching because `inactive` contains `active`.

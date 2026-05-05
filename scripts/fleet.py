@@ -156,7 +156,7 @@ def install_3xui(host, creds):
 # ── VLESS+Reality Inbound ────────────────────────────────────
 
 REMOTE_INBOUND_SCRIPT = textwrap.dedent(r'''
-import json, subprocess, sys, urllib.request, urllib.parse, http.cookiejar, secrets, glob
+import json, subprocess, sys, urllib.request, urllib.parse, http.cookiejar, secrets, glob, ssl
 
 port = int(sys.argv[1])
 remark = sys.argv[2]
@@ -170,7 +170,9 @@ candidates = glob.glob("/usr/local/x-ui/bin/xray-linux-*")
 XRAY = candidates[0] if candidates else "/usr/local/x-ui/bin/xray-linux-amd64"
 
 # Generate x25519 keys
-# Xray v26+: "PrivateKey: ... / Password: ... / Hash32: ..."
+# Xray v26 variants:
+# - "PrivateKey: ... / Password: ... / Hash32: ..."
+# - "PrivateKey: ... / Password (PublicKey): ... / Hash32: ..."
 # Xray older: "Private key: ... / Public key: ..."
 keys_out = subprocess.check_output([XRAY, "x25519"]).decode()
 kv = {}
@@ -180,7 +182,7 @@ for l in keys_out.strip().splitlines():
         kv[k.strip()] = v.strip()
 
 priv = kv.get("PrivateKey") or kv.get("Private key", "")
-pub = kv.get("Password") or kv.get("Public key", "")
+pub = kv.get("Password") or kv.get("Password (PublicKey)") or kv.get("Public key", "")
 
 if not priv or not pub:
     print(json.dumps({"success": False, "error": f"Failed to parse x25519 output: {kv}"}))
@@ -189,12 +191,25 @@ if not priv or not pub:
 uuid = subprocess.check_output([XRAY, "uuid"]).decode().strip()
 sid = secrets.token_hex(4)
 
-# Login
-panel = f"http://localhost:{panel_port}"
-cj = http.cookiejar.CookieJar()
-opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
-opener.open(f"{panel}/login",
-    urllib.parse.urlencode({"username": username, "password": password}).encode())
+# Login. Newer 3x-ui versions may run the panel with self-signed HTTPS.
+ctx = ssl._create_unverified_context()
+last_error = None
+for scheme in ("https", "http"):
+    panel = f"{scheme}://localhost:{panel_port}"
+    cj = http.cookiejar.CookieJar()
+    opener = urllib.request.build_opener(
+        urllib.request.HTTPCookieProcessor(cj),
+        urllib.request.HTTPSHandler(context=ctx),
+    )
+    try:
+        opener.open(f"{panel}/login",
+            urllib.parse.urlencode({"username": username, "password": password}).encode(),
+            timeout=10)
+        break
+    except Exception as e:
+        last_error = e
+else:
+    raise last_error
 
 # Delete existing proxy-fleet-managed VLESS inbound with the same remark to avoid duplicates.
 # Do not delete unrelated VLESS inbounds that the operator created manually.
@@ -264,23 +279,37 @@ def create_inbound(host, port, remark, cfg):
 # ── Remote Query ─────────────────────────────────────────────
 
 REMOTE_QUERY_SCRIPT = textwrap.dedent(r'''
-import json, urllib.request, urllib.parse, http.cookiejar, subprocess, sys, glob
+import json, urllib.request, urllib.parse, http.cookiejar, subprocess, sys, glob, ssl
 
 panel_port = int(sys.argv[1])
 username = sys.argv[2]
 password = sys.argv[3]
 
-panel = f"http://localhost:{panel_port}"
-cj = http.cookiejar.CookieJar()
-opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
-
+ctx = ssl._create_unverified_context()
 inbounds = []
 xver = "?"
+error = None
 
 try:
-    opener.open(f"{panel}/login",
-        urllib.parse.urlencode({"username": username, "password": password}).encode())
-    resp = opener.open(f"{panel}/panel/api/inbounds/list")
+    last_error = None
+    for scheme in ("https", "http"):
+        panel = f"{scheme}://localhost:{panel_port}"
+        cj = http.cookiejar.CookieJar()
+        opener = urllib.request.build_opener(
+            urllib.request.HTTPCookieProcessor(cj),
+            urllib.request.HTTPSHandler(context=ctx),
+        )
+        try:
+            opener.open(f"{panel}/login",
+                urllib.parse.urlencode({"username": username, "password": password}).encode(),
+                timeout=10)
+            break
+        except Exception as e:
+            last_error = e
+    else:
+        raise last_error
+
+    resp = opener.open(f"{panel}/panel/api/inbounds/list", timeout=10)
     data = json.loads(resp.read())
 
     for ib in data.get("obj", []):
@@ -307,7 +336,7 @@ try:
 except Exception as e:
     error = str(e)
 
-print(json.dumps({"inbounds": inbounds, "xray_version": xver, "error": error if 'error' in globals() else None}))
+print(json.dumps({"inbounds": inbounds, "xray_version": xver, "error": error}))
 ''')
 
 def query_node(host, cfg):

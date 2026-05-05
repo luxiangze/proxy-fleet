@@ -59,6 +59,20 @@ class FleetTests(unittest.TestCase):
         self.assertNotIn('if ib.get("protocol") == "vless":', script)
         self.assertIn('ib.get("remark") == remark', script)
 
+    def test_remote_inbound_script_accepts_xray_public_key_label_variants(self):
+        script = fleet.REMOTE_INBOUND_SCRIPT
+
+        self.assertIn('kv.get("Password")', script)
+        self.assertIn('kv.get("Password (PublicKey)")', script)
+        self.assertIn('kv.get("Public key", "")', script)
+
+    def test_remote_scripts_try_https_panel_before_http_fallback(self):
+        for script in (fleet.REMOTE_INBOUND_SCRIPT, fleet.REMOTE_QUERY_SCRIPT):
+            self.assertIn("ssl", script)
+            self.assertIn('for scheme in ("https", "http"):', script)
+            self.assertIn("ssl._create_unverified_context()", script)
+            self.assertIn("urllib.request.HTTPSHandler(context=ctx)", script)
+
     def test_remote_query_script_reports_errors_instead_of_silently_swallowing_them(self):
         script = fleet.REMOTE_QUERY_SCRIPT
 
