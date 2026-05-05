@@ -386,6 +386,7 @@ def generate_subscription(cfg, node_details):
     domestic_ns = dns_cfg.get("domestic", ["223.5.5.5", "119.29.29.29"])
     domestic_doh = dns_cfg.get("domestic_doh", ["https://dns.alidns.com/dns-query", "https://doh.pub/dns-query"])
     foreign_dns = dns_cfg.get("foreign", ["https://dns.google/dns-query", "https://cloudflare-dns.com/dns-query"])
+    ipv6_enabled = bool(dns_cfg.get("ipv6", False))
 
     # Build proxy list
     proxies = []
@@ -451,7 +452,7 @@ def generate_subscription(cfg, node_details):
         "dns:",
         "  enable: true",
         "  listen: :1053",
-        "  ipv6: false",
+        f"  ipv6: {str(ipv6_enabled).lower()}",
         "  enhanced-mode: fake-ip",
         "  fake-ip-range: 198.18.0.1/16",
         "  fake-ip-filter:",
@@ -565,12 +566,14 @@ def cmd_init():
     dns_preset = input("DNS preset - [1] China, [2] Global [1]: ").strip() or "1"
     if dns_preset == "2":
         dns_cfg = {
+            "ipv6": False,
             "domestic": ["8.8.8.8", "1.1.1.1"],
             "domestic_doh": ["https://dns.google/dns-query", "https://cloudflare-dns.com/dns-query"],
             "foreign": ["https://dns.google/dns-query", "https://cloudflare-dns.com/dns-query"]
         }
     else:
         dns_cfg = {
+            "ipv6": False,
             "domestic": ["223.5.5.5", "119.29.29.29"],
             "domestic_doh": ["https://dns.alidns.com/dns-query", "https://doh.pub/dns-query"],
             "foreign": ["https://dns.google/dns-query", "https://cloudflare-dns.com/dns-query"]

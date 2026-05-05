@@ -53,6 +53,27 @@ class FleetTests(unittest.TestCase):
         argv = shlex.split(captured["args"])
         self.assertEqual(argv, ["443", "New York", "9453", "admin user", "pa ss'word", "www.microsoft.com"])
 
+    def test_generate_subscription_can_enable_ipv6_dns(self):
+        cfg = {
+            "defaults": {"sni": "www.microsoft.com", "fingerprint": "chrome", "dns": {"ipv6": True}},
+            "nodes": [{"ssh_host": "h1", "emoji": "🇯🇵", "name": "Tokyo", "server": "1.2.3.4", "port": 443}],
+        }
+        node_details = {
+            "h1": {
+                "inbounds": [{
+                    "protocol": "vless",
+                    "uuid": "00000000-0000-0000-0000-000000000000",
+                    "public_key": "pub",
+                    "short_id": "sid",
+                    "sni": "www.microsoft.com",
+                }]
+            }
+        }
+
+        yaml_text = fleet.generate_subscription(cfg, node_details)
+
+        self.assertIn("  ipv6: true", yaml_text)
+
     def test_remote_inbound_script_only_deletes_matching_managed_vless_inbound(self):
         script = fleet.REMOTE_INBOUND_SCRIPT
 

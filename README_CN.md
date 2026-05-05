@@ -143,6 +143,7 @@ python3 -m unittest -v tests/test_fleet.py
 - **端口冲突**是最常见的部署失败原因 — 脚本会在配置前先扫描端口。
 - **UFW 检测**必须匹配 `Status: active`，不能用 substring，因为 `inactive` 里也包含 `active`。
 - **远程脚本参数**通过 `shlex.quote` 做 shell quoting，节点名和凭证可以包含空格或引号。
+- **DNS IPv6** 可通过 `defaults.dns.ipv6` 配置；默认 `false`，保证客户端兼容性。
 - **xray 二进制**路径自动检测（glob `/usr/local/x-ui/bin/xray-linux-*`），同时支持 amd64 和 arm64。
 
 ## 许可证

@@ -109,5 +109,6 @@ These matter when debugging or extending the skill:
 - **Port conflicts** are the #1 deploy failure cause — the script scans ports before configuring.
 - **UFW detection** must match `Status: active`; substring checks are wrong because `inactive` contains `active`.
 - **Remote SSH argv** is shell-quoted with `shlex.quote`; node names and credentials may contain spaces or quotes.
+- **DNS IPv6** is configurable with `defaults.dns.ipv6`; default is `false` for conservative client compatibility.
 - **xray binary** path is auto-detected via glob (`/usr/local/x-ui/bin/xray-linux-*`), works
   on both amd64 and arm64.

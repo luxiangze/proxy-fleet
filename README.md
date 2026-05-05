@@ -145,6 +145,7 @@ python3 -m unittest -v tests/test_fleet.py
 - **Port conflicts** are the #1 deploy failure. The script scans ports before configuring.
 - **UFW detection** must match `Status: active`; do not use substring matching because `inactive` contains `active`.
 - **Remote script args** are shell-quoted before passing through SSH, so node names and credentials may contain spaces or quotes.
+- **DNS IPv6** is configurable with `defaults.dns.ipv6`; default is `false` for conservative client compatibility.
 
 ## License
 
