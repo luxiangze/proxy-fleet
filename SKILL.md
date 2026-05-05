@@ -16,8 +16,10 @@ and generate Clash/Mihomo subscription URLs that auto-sync when nodes change.
 
 ## Working Directory
 
+Clone or fork the repository first, then run commands from that project root:
+
 ```bash
-cd /Users/wangzhuc/proxy-fleet
+cd /path/to/proxy-fleet
 ```
 
 ## Commands
@@ -70,6 +72,27 @@ SSH → scan ports (avoid conflicts) → pick available port
 Edit the relevant file in `templates/rules/`, then run `sync` to regenerate and upload
 the subscription. Users refresh in Clash Verge Rev to get changes.
 
+## Safety Notes
+
+- `deploy` installs or reconfigures 3x-ui and may open firewall ports on the remote VPS.
+- `deploy` only deletes an existing VLESS inbound with the same `remark`; unrelated VLESS inbounds are preserved.
+- `remove` only removes the node from local `config.json` and the generated subscription. It does not uninstall 3x-ui, close firewall ports, or delete remote inbounds.
+- `config.json` contains panel credentials. Never commit it or paste it into chat.
+- Before destructive cleanup beyond `remove`, ask for explicit confirmation and show the exact SSH command.
+
+## Verification
+
+Run after deploy, remove, or rule edits:
+
+```bash
+python3 -m py_compile scripts/fleet.py
+python3 -m unittest -v tests/test_fleet.py
+python3 scripts/fleet.py status
+python3 scripts/fleet.py sync
+```
+
+Check the subscription URL reported by `status` or `sync` with `curl -I`, then refresh in Clash Verge Rev / Mihomo.
+
 ## Technical Notes
 
 These matter when debugging or extending the skill:
@@ -81,5 +104,7 @@ These matter when debugging or extending the skill:
 - **3x-ui API**: `POST /login` → session cookie → `/panel/api/inbounds/{add,update,del,list}`.
 - **Reality returns HTTP 400** to non-VLESS clients — the connectivity check treats 400 as alive.
 - **Port conflicts** are the #1 deploy failure cause — the script scans ports before configuring.
+- **UFW detection** must match `Status: active`; substring checks are wrong because `inactive` contains `active`.
+- **Remote SSH argv** is shell-quoted with `shlex.quote`; node names and credentials may contain spaces or quotes.
 - **xray binary** path is auto-detected via glob (`/usr/local/x-ui/bin/xray-linux-*`), works
   on both amd64 and arm64.

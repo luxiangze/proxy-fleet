@@ -98,6 +98,44 @@ python3 scripts/fleet.py sync
 
 Users refresh their subscription in Clash Verge Rev to pick up the changes.
 
+## Operational Safety
+
+`proxy-fleet` is an operations tool and can change remote VPS state. Before deploying, make sure you understand the scope:
+
+- `deploy` installs or reconfigures 3x-ui on the target host.
+- `deploy` opens the selected VLESS port and the 3x-ui panel port when a restrictive firewall is detected.
+- `deploy` only removes an existing VLESS inbound whose `remark` matches the node being deployed. It does **not** delete unrelated VLESS inbounds.
+- `remove` only removes the node from local `config.json` and from the generated subscription. It does **not** uninstall 3x-ui, close firewall ports, or delete remote inbounds.
+- `config.json` contains panel credentials and node state. It is gitignored and must not be committed.
+
+## Verification
+
+After any deploy or rule change:
+
+```bash
+python3 scripts/fleet.py status
+python3 scripts/fleet.py sync
+curl -I https://YOUR_SUBSCRIPTION_DOMAIN/YOUR_URL_PATH/config.yaml
+```
+
+Then refresh the subscription in Clash Verge Rev / Mihomo and test at least one proxied domain.
+
+For remote troubleshooting:
+
+```bash
+ssh <host> 'systemctl status x-ui --no-pager'
+ssh <host> 'ss -tlnp | grep -E "(:443|:9453)"'
+```
+
+## Development
+
+The project intentionally keeps runtime dependencies to the Python standard library. Tests also use stdlib `unittest`:
+
+```bash
+python3 -m py_compile scripts/fleet.py
+python3 -m unittest -v tests/test_fleet.py
+```
+
 ## Tech Notes
 
 - **Xray v26 key format**: `x25519` outputs `PrivateKey` / `Password` (= public key) / `Hash32`. Older versions use `Private key` / `Public key`. The script handles both.
@@ -105,6 +143,8 @@ Users refresh their subscription in Clash Verge Rev to pick up the changes.
 - **3x-ui API**: `POST /login` → session cookie → `/panel/api/inbounds/{add,update,del,list}`.
 - **Reality returns 400** to non-VLESS clients. The connectivity check treats 400 as "alive".
 - **Port conflicts** are the #1 deploy failure. The script scans ports before configuring.
+- **UFW detection** must match `Status: active`; do not use substring matching because `inactive` contains `active`.
+- **Remote script args** are shell-quoted before passing through SSH, so node names and credentials may contain spaces or quotes.
 
 ## License
 

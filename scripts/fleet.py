@@ -12,7 +12,7 @@ Usage:
     python3 fleet.py sync                              # Regenerate & upload subscription
 """
 
-import json, subprocess, sys, os, secrets, re, textwrap, time
+import json, subprocess, sys, os, secrets, re, shlex, textwrap, time
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -112,7 +112,8 @@ def pick_port(used_ports, preferred_ports, nat_range=None):
 
 def configure_firewall(host, ports):
     """Detect firewall type and open ports."""
-    has_ufw = "active" in ssh(host, "ufw status 2>/dev/null || echo inactive", check=False)
+    ufw_status = ssh(host, "ufw status 2>/dev/null || true", check=False).lower()
+    has_ufw = "status: active" in ufw_status
     if has_ufw:
         for p in ports:
             ssh(host, f"ufw allow {p}/tcp 2>/dev/null", check=False)
@@ -137,8 +138,8 @@ def install_3xui(host, creds):
     else:
         print(f"  [{host}] Installing 3x-ui (this may take 1-2 minutes)...")
         ssh(host,
-            "echo 'y' | bash <(curl -Ls https://raw.githubusercontent.com/MHSanaei/3x-ui/master/install.sh)",
-            timeout=180, check=False)
+            "bash -c \"echo y | bash <(curl -Ls https://raw.githubusercontent.com/MHSanaei/3x-ui/master/install.sh)\"",
+            timeout=180, check=True)
         print(f"  [{host}] Install complete")
 
     # Always reset credentials to ensure consistency
@@ -195,12 +196,13 @@ opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
 opener.open(f"{panel}/login",
     urllib.parse.urlencode({"username": username, "password": password}).encode())
 
-# Delete existing VLESS inbounds to avoid duplicates
+# Delete existing proxy-fleet-managed VLESS inbound with the same remark to avoid duplicates.
+# Do not delete unrelated VLESS inbounds that the operator created manually.
 req = urllib.request.Request(f"{panel}/panel/api/inbounds/list")
 resp = opener.open(req)
 existing = json.loads(resp.read())
 for ib in existing.get("obj", []):
-    if ib.get("protocol") == "vless":
+    if ib.get("protocol") == "vless" and ib.get("remark") == remark:
         dreq = urllib.request.Request(f"{panel}/panel/api/inbounds/del/{ib['id']}")
         opener.open(dreq)
 
@@ -244,7 +246,14 @@ def create_inbound(host, port, remark, cfg):
     """Create VLESS+Reality inbound on remote host. Returns node info dict."""
     creds = cfg["credentials"]
     defaults = cfg["defaults"]
-    args = f"{port} {remark} {creds['panel_port']} {creds['username']} {creds['password']} {defaults['sni']}"
+    args = " ".join(shlex.quote(str(v)) for v in [
+        port,
+        remark,
+        creds["panel_port"],
+        creds["username"],
+        creds["password"],
+        defaults["sni"],
+    ])
     out = ssh_script(host, REMOTE_INBOUND_SCRIPT, args, timeout=30)
     result = json.loads(out)
     if not result.get("success"):
@@ -296,9 +305,9 @@ try:
             [candidates[0], "version"], stderr=subprocess.STDOUT
         ).decode().split()[1]
 except Exception as e:
-    pass
+    error = str(e)
 
-print(json.dumps({"inbounds": inbounds, "xray_version": xver}))
+print(json.dumps({"inbounds": inbounds, "xray_version": xver, "error": error if 'error' in globals() else None}))
 ''')
 
 def query_node(host, cfg):
@@ -721,7 +730,10 @@ def cmd_sync():
                 nd = f.result()
                 node_details[node["ssh_host"]] = nd
                 ib_count = len(nd.get("inbounds", []))
-                print(f"  [{node['ssh_host']}] {ib_count} inbound(s)")
+                if nd.get("error"):
+                    print(f"  [{node['ssh_host']}] ⚠️ Query warning: {nd['error'][:120]}")
+                else:
+                    print(f"  [{node['ssh_host']}] {ib_count} inbound(s)")
             except Exception as e:
                 print(f"  [{node['ssh_host']}] ❌ Query failed: {e}")
 

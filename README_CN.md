@@ -96,6 +96,44 @@ python3 scripts/fleet.py sync
 
 用户在 Clash Verge Rev 中刷新订阅即可拿到最新规则。
 
+## 运维安全边界
+
+`proxy-fleet` 会修改远端 VPS 状态，部署前先确认影响范围：
+
+- `deploy` 会在目标机器安装或重新配置 3x-ui。
+- `deploy` 检测到限制性防火墙时，会开放选中的 VLESS 端口和 3x-ui 面板端口。
+- `deploy` 只删除 `remark` 与当前节点匹配的已有 VLESS 入站，避免重复；不会删除其它手工创建的 VLESS 入站。
+- `remove` 只从本地 `config.json` 和订阅中移除节点；不会卸载 3x-ui、关闭防火墙端口或删除远端入站。
+- `config.json` 含面板凭证和节点状态，已 gitignore，不能提交。
+
+## 验证
+
+每次部署或更新规则后运行：
+
+```bash
+python3 scripts/fleet.py status
+python3 scripts/fleet.py sync
+curl -I https://你的订阅域名/你的URL路径/config.yaml
+```
+
+然后在 Clash Verge Rev / Mihomo 中刷新订阅，并测试至少一个需要代理的域名。
+
+远端排障可用：
+
+```bash
+ssh <host> 'systemctl status x-ui --no-pager'
+ssh <host> 'ss -tlnp | grep -E "(:443|:9453)"'
+```
+
+## 开发
+
+运行时和测试都只使用 Python 标准库：
+
+```bash
+python3 -m py_compile scripts/fleet.py
+python3 -m unittest -v tests/test_fleet.py
+```
+
 ## 技术备注
 
 - **Xray v26 密钥格式**：`x25519` 输出 `PrivateKey` / `Password`（= 公钥）/ `Hash32`。旧版输出 `Private key` / `Public key`。脚本兼容两种格式。
@@ -103,6 +141,8 @@ python3 scripts/fleet.py sync
 - **3x-ui API**：`POST /login` → 获取 session cookie → `/panel/api/inbounds/{add,update,del,list}`
 - **Reality 对非 VLESS 客户端返回 400** — 连通性检测时 400 = 节点正常。
 - **端口冲突**是最常见的部署失败原因 — 脚本会在配置前先扫描端口。
+- **UFW 检测**必须匹配 `Status: active`，不能用 substring，因为 `inactive` 里也包含 `active`。
+- **远程脚本参数**通过 `shlex.quote` 做 shell quoting，节点名和凭证可以包含空格或引号。
 - **xray 二进制**路径自动检测（glob `/usr/local/x-ui/bin/xray-linux-*`），同时支持 amd64 和 arm64。
 
 ## 许可证
